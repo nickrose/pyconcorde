@@ -14,9 +14,10 @@ EDGE_WEIGHT_TYPES = {
 }
 
 
-def write_tsp_file(fp, xs, ys, norm, name):
+def write_tsp_file(fp, xs, ys, norm, name, edges_matrix=None):
     """ Write data to a TSPLIB file.
     """
+    use_edge_weight_matrix = False
     if len(xs) != len(ys):
         raise ValueError(
             "x and y coordinate vector must have the "
@@ -28,13 +29,30 @@ def write_tsp_file(fp, xs, ys, norm, name):
             .format(norm, ', '.join(EDGE_WEIGHT_TYPES))
         )
 
+    if edges_matrix is not None:
+        norm = "EXPLICIT"
+        nnodes = edges_matrix.shape[0]
+        assert nnodes == edges_matrix.shape[1] == len(xs), (
+            "shape of edges_matrix must match the number of nodes")
+        use_edge_weight_matrix = True
+
     fp.write("NAME: {}\n".format(name))
     fp.write("TYPE: TSP\n")
     fp.write("DIMENSION: {}\n".format(len(xs)))
     fp.write("EDGE_WEIGHT_TYPE: {}\n".format(norm))
+    if use_edge_weight_matrix:
+        fp.write("EDGE_WEIGHT_FORMAT: FULL_MATRIX\n")
     fp.write("NODE_COORD_SECTION\n")
     for n, (x, y) in enumerate(zip(xs, ys), start=1):
         fp.write("{} {} {}\n".format(n, x, y))
+    if use_edge_weight_matrix:
+        fp.write("EDGE_WEIGHT_SECTION")
+        minv = edges_matrix.min()
+        for n, mat_index_i in enumerate(range(n), start=1):
+            for m, mat_index_j in enumerate(range(n), start=1):
+                weight = int(edges_matrix[mat_index_i, mat_index_j] / minv)
+                fp.write("{} {} {}\n".format(n, m, weight))
+        fp.write("-1")
     fp.write("EOF\n")
 
 
